@@ -21,56 +21,100 @@ function init() {
 	program = initShaders(gl, "vertex-shader", "fragment-shader")
 	gl.useProgram(program)
 
-	// Reset for drawing
-	gl.clear(gl.COLOR_BUFFER_BIT)
+	let odd = false
 
-	let x = 0,
-		y = 0,
-		angle = 0,
-		radius = 5
+	setInterval(() => {
+		// Reset for drawing
+		gl.clear(gl.COLOR_BUFFER_BIT)
 
-	window.addEventListener('keydown', (e) => {
-		switch (e.keyCode) {
-			case 37: // Left
-				angle -= 0.1
-				break;
-
-			case 38: // Up
-				x = Math.max(
-					Math.min(
-						1 - (1 / radius),
-						x + (Math.cos(angle) * (1 / radius)) / 2
-					),
-					-1 + (1 / radius)
-				)
-
-				y = Math.max(
-					Math.min(
-						1 - (1 / radius),
-						y - (Math.sin(angle) * (1 / radius)) / 2
-					),
-					-1 + (1 / radius)
-				)
-				
-				break;
-
-			case 39: // Right
-				angle += 0.1
-				break;
-
-			case 40: // Down
-				break;
-		}
-	})
-
-	// Render
-	let render = () => {
 		// Draw Pacman
-		drawPacman(radius, 60, 55, x, y, angle)
-		requestAnimationFrame(render)
+		drawPacman(1.5, 60, odd ? 10 : 55)
+
+		// Draw Border
+		drawBorder(0.03, { r: 0, g: 0, b: 0 })
+
+		odd = !odd
+	}, 300)
+}
+
+/**
+ * Draw a border around the canvas
+ *
+ * @param  {Number}        size  Size of the border
+ * @param  {String|Object} color Color to use, either 'random' or an object containing r, g and b values
+ */
+function drawBorder(size = 0.1, color = 'random') {
+	let positions = []
+	let colors = []
+
+	if (color !== 'random' && typeof(color) !== 'object') {
+		color = {
+			r: 0,
+			g: 0,
+			b: 0
+		}
 	}
 
-	requestAnimationFrame(render)
+	for (let x = -1 + size / 2; x < 1; x += size) {
+		for (let y = -1 + size / 2; y < 1; y += size) {
+			let startBorder = -1 + size / 2,
+				endBorder = 1 - size / 2
+
+			let isLeft = x == startBorder,
+				isRight = x > endBorder - size / 4,
+				isTop = y == startBorder,
+				isBottom = y > endBorder - size / 4
+
+			if (!isLeft && !isRight && !isTop && !isBottom) {
+				continue;
+			}
+
+			const square = {
+				x,
+				y,
+				r: color == 'random' ? Math.random() : color.r,
+				g: color == 'random' ? Math.random() : color.g,
+				b: color == 'random' ? Math.random() : color.b,
+				halfSize: size / 2
+			}
+
+			positions = positions.concat([
+				square.x - square.halfSize, square.y - square.halfSize, 
+				square.x - square.halfSize, square.y + square.halfSize, 
+				square.x + square.halfSize, square.y + square.halfSize,
+				square.x + square.halfSize, square.y + square.halfSize,
+				square.x + square.halfSize, square.y - square.halfSize,
+				square.x - square.halfSize, square.y - square.halfSize
+			])
+
+			colors = colors.concat([
+				square.r, square.g, square.b, 1,
+				square.r, square.g, square.b, 1,
+				square.r, square.g, square.b, 1,
+				square.r, square.g, square.b, 1,
+				square.r, square.g, square.b, 1,
+				square.r, square.g, square.b, 1
+			])
+		}
+	}
+
+	// Create VBO
+	const vbo = gl.createBuffer()
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions.concat(colors)), gl.STATIC_DRAW)
+
+	// Link Data
+	const vPosition = gl.getAttribLocation(program, 'vPosition')
+	gl.enableVertexAttribArray(vPosition)
+	gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0)
+
+	const vColor = gl.getAttribLocation(program, 'vColor')
+	gl.enableVertexAttribArray(vColor)
+	gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, positions.length * 4)
+
+	// Draw!
+	gl.drawArrays(gl.TRIANGLES, 0, positions.length / 2)
 }
 
 /**
@@ -80,15 +124,8 @@ function init() {
  * @param  {Number} vertices   Number of vertices to use for the body, defaults to 8
  * @param  {Number} mouthAngle Size of the mouse as an angle, defaults to 45
  */
-function drawPacman(radius, vertices = 8, mouthAngle = 45, x = 0, y = 0, rotation = 0) {
+function drawPacman(radius, vertices = 8, mouthAngle = 45) {
 	radius = 1 / radius
-
-	// Tell Shader what to do
-	const locRotation = gl.getUniformLocation(program, 'rotation')
-	const locTranslation = gl.getUniformLocation(program, 'translation')
-
-	gl.uniform2fv(locTranslation, new Float32Array([ x, y ]))
-	gl.uniform1f(locRotation, rotation)
 
 	// Nested function for drawing the body only
 	const drawBody = () => {
