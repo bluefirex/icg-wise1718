@@ -27,7 +27,7 @@ function init() {
 	let x = 0,
 		y = 0,
 		angle = 0,
-		radius = 5
+		radius = 10
 
 	window.addEventListener('keydown', (e) => {
 		switch (e.keyCode) {
@@ -63,10 +63,17 @@ function init() {
 		}
 	})
 
+	// Gimmick: Mouth Animation
+	let odd = false
+
+	setInterval(() => {
+		odd = !odd
+	}, 300)
+
 	// Render
 	let render = () => {
 		// Draw Pacman
-		drawPacman(radius, 60, 55, x, y, angle)
+		drawPacman(radius, 60, odd ? 15 : 55, x, y, angle)
 		requestAnimationFrame(render)
 	}
 
