@@ -32,7 +32,6 @@ class PalmTreeTrunk {
 		this.y = y
 		this.height = height
 
-		this.colors = []
 		this.vbo = gl.createBuffer()
 		this.model = this.makeModel()
 		this.modelMatrix = this.makeModelMatrix()
