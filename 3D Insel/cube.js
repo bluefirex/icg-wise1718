@@ -21,20 +21,25 @@ let projectionMatrixLoc,
 
 let config = {
 	island: {
-		size: 1.3
+		size: 1.5
 	},
 
-	camera: {
+	moveSpeed: 0.01,
+	rotateSpeed: 0.01,
+
+	keyHelper: null
+}
+
+let state = {
+	keyHelper: null,
+
+	angle: {
 		x: 0,
-		y: 0.2,
-		z: 1
+		y: 0
 	},
 
-	target: {
-		x: 0,
-		y: 0,
-		z: 0
-	}
+	camera: vec3.fromValues(0, 0.1, 1),
+	target: vec3.fromValues(0, 0, 0.6)
 }
 
 function degToRad(deg) {
@@ -232,6 +237,10 @@ class Island extends WebGLObject {
 	}
 }
 
+/**
+ * Water
+ * Basically the same as an island, just different colors
+ */
 class Water extends Island {
 
 	makeModel() {
@@ -336,6 +345,9 @@ class PalmTreeTrunk extends WebGLObject {
 	}
 }
 
+/**
+ * Just a palm tree leaf
+ */
 class PalmTreeLeaf extends WebGLObject {
 
 	constructor(x, y, z, width = 0.1, height = 0.2, rotation = 0) {
@@ -365,6 +377,9 @@ class PalmTreeLeaf extends WebGLObject {
 	}
 }
 
+/**
+ * The whole Palm tree as a composition of WebGL objects
+ */
 class PalmTree {
 
 	constructor(x, y, z, height, leafs) {
@@ -389,24 +404,89 @@ class PalmTree {
 }
 
 /**
+ * What is this for?
+ *    When using the browser's built-in keydown event it only repeats
+ *    keypressed every once in a while (something less than 60 FPS).
+ *    
+ *    We use this to remember which keys are currently pressed so
+ *    that our rendering can pick up keys whenever it wants to.
+ *    
+ *    This also enables us to fire changes whenever two keys are
+ *    pressed at once, something keydown can't do either.
+ */
+class KeyHelper {
+	constructor() {
+		this.pressed = {
+			[KeyHelper.CODE_W]: false,
+			[KeyHelper.CODE_A]: false,
+			[KeyHelper.CODE_S]: false,
+			[KeyHelper.CODE_D]: false
+		}
+	}
+
+	/**
+	 * Is a certain key pressed currently?
+	 *
+	 * @param  {int}  code keyCode
+	 *
+	 * @return {Boolean}
+	 */
+	isPressed(code) {
+		return this.pressed[code]
+	}
+
+	/**
+	 * Update state: keydown
+	 *
+	 * @param  {Event} e Browser Event
+	 */
+	onKeyDown(e) {
+		this.pressed[e.keyCode] = true
+	}
+
+	/**
+	 * Update state: keyup
+	 *
+	 * @param  {Event} e Browser Event
+	 */
+	onKeyUp(e) {
+		this.pressed[e.keyCode] = false
+	}
+
+	static get CODE_W() {
+		return 87
+	}
+
+	static get CODE_A() {
+		return 65
+	}
+
+	static get CODE_S() {
+		return 83
+	}
+
+	static get CODE_D() {
+		return 68
+	}
+}
+
+/**
  * Initializes the program, models and shaders
  */
 function init() {
-
 	// 1. Get canvas and setup WebGL context
     canvas = document.getElementById("gl-canvas")
 	gl = canvas.getContext('webgl')
 	
-	// 2. Configure viewport
-	gl.viewport(0, 0, canvas.width, canvas.height)
+	// 2. Configure canvas
 	gl.clearColor(0.01, 0.6, 0.9, 1)
 	gl.enable(gl.DEPTH_TEST)
 
 	// 3. Specify vertices
-	let palmTree = new PalmTree(0, 0, 0, 0.32, 5)
+	let palmTree = new PalmTree(x = 0, y = 0, z = 0, height = 0.32, leafs = 5)
 
-	objects.push(new Water(0, -0.14, 0, 2.0, 0.0019, 2.0))
-	objects.push(new Island(0, -0.04, 0, config.island.size, 0.002, config.island.size))
+	objects.push(new Water(x = 0, y = -0.14, z = 0, width = 2.0, height = 0.0019, depth = 2.0))
+	objects.push(new Island(x = 0, y = -0.04, z = 0, width = config.island.size, height = 0.00191, depth = config.island.size))
 	objects.push(palmTree.getTrunk())
 	objects = objects.concat(palmTree.getLeafs())
 
@@ -419,6 +499,10 @@ function init() {
 	colorLoc = gl.getAttribLocation(program, "vColor")
 	modelMatrixLoc = gl.getUniformLocation(program, "modelMatrix")
 
+	// Lock Mouse
+	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock
+
+	// Set Listeners
 	setListeners()
 	
 	// 8. Render
@@ -426,71 +510,115 @@ function init() {
 }
 
 function setListeners() {
-	canvas.addEventListener('mousemove', (e) => {
-		let x = (e.offsetX / (canvas.width / 2)) - 1
-		let y = (e.offsetY / (canvas.height / 2)) - 1
+	state.keyHelper = new KeyHelper()
 
-		config.target.x = x
-//		config.target.y = y
+	/**
+	 * Move mouse, update camera
+	 */
+	let mouseMove = (e) => {
+		let x = e.movementX * 0.01
+		let y = e.movementY * 0.01
+
+		vec3.rotateY(state.target, state.target, state.camera, -x)
+
+		console.log(state.target[0], state.target[1])
+
+		vec3.rotateX(state.target, state.target, state.camera, -y)
+
+		state.angle.x += x
+		state.angle.y += y
+	}
+
+	/**
+	 * When the pointer is locked, add events to react to changes
+	 */
+	document.addEventListener('pointerlockchange', (e) => {
+		if (document.pointerLockElement === canvas) {
+			canvas.addEventListener('mousemove', mouseMove)
+			window.addEventListener('keydown', state.keyHelper.onKeyDown.bind(state.keyHelper))
+			window.addEventListener('keyup', state.keyHelper.onKeyUp.bind(state.keyHelper))
+
+			console.log('Mouse locked to canvas')
+		} else {
+			canvas.removeEventListener('mousemove', mouseMove)
+			window.removeEventListener('keydown', state.keyHelper.onKeyDown.bind(state.keyHelper))
+			window.removeEventListener('keyup', state.keyHelper.onKeyUp.bind(state.keyHelper))
+
+			console.log('Mouse released from canvas')
+		}
 	})
 
-	window.addEventListener('keydown', (e) => {
-		switch (e.keyCode) {
-			case 87: // W
-				if (config.camera.z - 0.04 > -config.island.size / 2) {
-					// TODO
-				}
-
-				break
-
-			case 65: // A
-				if (config.camera.x - 0.04 > -config.island.size / 2) {
-					config.target.x -= 0.02
-					config.camera.x -= 0.02
-				}
-
-				break
-
-			case 83: // S
-				if (config.camera.z + 0.04 < config.island.size / 2) {
-					// TODO
-				}
-
-				break
-
-			case 68: // D
-				if (config.camera.x + 0.04 < config.island.size / 2) {
-					config.target.x += 0.02
-					config.camera.x += 0.02
-				}
-
-				break
-		}
+	/**
+	 * When someone clicks on the canvas, lock the pointer
+	 */
+	canvas.addEventListener('click', (e) => {
+		canvas.requestPointerLock()
 	})
 }
 
-function render() {
-	// Set view matrix
-	let eyeVec = vec3.fromValues(config.camera.x, config.camera.y, config.camera.z)	// Kameraursprung
-	//	eyeVec = vec3.fromValues(2, 2, 2)		// Kameraursprung
-	let target = vec3.fromValues(config.target.x, config.target.y, config.target.z) // Ziel
-	let up = vec3.fromValues(0.0, 1.0, 0.0)		// Wo ist oben?
+function updateCamera() {
+	// W-key
+	if (state.keyHelper.isPressed(KeyHelper.CODE_W)) {
+		if (state.camera[2] - 0.04 > -config.island.size / 2) {
+			let diff = vec3.fromValues(0, 0, -0.01)
+			vec3.rotateY(diff, diff, vec3.fromValues(0, 0, 0), -state.angle.x)
 
+			vec3.add(state.camera, state.camera, diff)
+			vec3.add(state.target, state.target, diff)
+		}
+	}
+
+	// S-key
+	if (state.keyHelper.isPressed(KeyHelper.CODE_S)) {
+		if (state.camera[2] + 0.04 < config.island.size / 2) {
+			let diff = vec3.fromValues(0, 0, 0.01)
+			vec3.rotateY(diff, diff, vec3.fromValues(0, 0, 0), -state.angle.x)
+
+			vec3.add(state.camera, state.camera, diff)
+			vec3.add(state.target, state.target, diff)
+		}
+	}
+
+	// A-key
+	if (state.keyHelper.isPressed(KeyHelper.CODE_A)) {
+		if (state.camera[0] - 0.04 > -config.island.size / 2) {
+			vec3.add(state.camera, state.camera, vec3.fromValues(-0.01, 0, 0))
+			vec3.add(state.target, state.target, vec3.fromValues(-0.01, 0, 0))
+		}
+	}
+
+	// D-key
+	if (state.keyHelper.isPressed(KeyHelper.CODE_D)) {
+		if (state.camera[0] + 0.04 < config.island.size / 2) {
+			vec3.add(state.camera, state.camera, vec3.fromValues(0.01, 0, 0))
+			vec3.add(state.target, state.target, vec3.fromValues(0.01, 0, 0))
+		}
+	}
+
+	// Update Matrices
 	viewMatrix = mat4.create()
-	mat4.lookAt(viewMatrix, eyeVec, target, up)
+	mat4.lookAt(viewMatrix, state.camera, state.target, vec3.fromValues(0, 1, 0))
 
-	// 7 Save uniform location and save the view matrix into it
 	viewMatrixLoc = gl.getUniformLocation(program, "viewMatrix")
 	gl.uniformMatrix4fv(viewMatrixLoc, false, viewMatrix)
+}
+
+function render() {
+	// Resize Canvas
+	canvas.width = window.innerWidth
+	canvas.height = window.innerHeight
+
+	gl.viewport(0, 0, canvas.width, canvas.height)
+	updateCamera()
 
 	// Set projection matrix
 	projectionMatrix = mat4.create()
 	mat4.perspective(
 		projectionMatrix,
-		Math.PI * 0.2,					// Field of View
+		Math.PI * 0.25,					// Field of View
 		canvas.width / canvas.height,	// Aspect Ratio
-		0.1,							// Near
-		50								// Far
+		0.01,							// Near
+		1000							// Far
 	)
 
 	// 7 Save uniform location and save the projection matrix into it
