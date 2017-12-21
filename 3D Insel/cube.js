@@ -158,16 +158,22 @@ function updateCamera() {
 	// A-key
 	if (state.keyHelper.isPressed(KeyHelper.CODE_A)) {
 		if (state.camera[0] - 0.04 > -config.island.size / 2) {
-			vec3.add(state.camera, state.camera, vec3.fromValues(-0.01, 0, 0))
-			vec3.add(state.target, state.target, vec3.fromValues(-0.01, 0, 0))
+			let diff = vec3.fromValues(-0.01, 0, 0)
+			vec3.rotateY(diff, diff, vec3.fromValues(0, 0, 0), -state.angle.x)
+
+			vec3.add(state.camera, state.camera, diff)
+			vec3.add(state.target, state.target, diff)
 		}
 	}
 
 	// D-key
 	if (state.keyHelper.isPressed(KeyHelper.CODE_D)) {
 		if (state.camera[0] + 0.04 < config.island.size / 2) {
-			vec3.add(state.camera, state.camera, vec3.fromValues(0.01, 0, 0))
-			vec3.add(state.target, state.target, vec3.fromValues(0.01, 0, 0))
+			let diff = vec3.fromValues(0.01, 0, 0)
+			vec3.rotateY(diff, diff, vec3.fromValues(0, 0, 0), -state.angle.x)
+
+			vec3.add(state.camera, state.camera, diff)
+			vec3.add(state.target, state.target, diff)
 		}
 	}
 
