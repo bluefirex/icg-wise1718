@@ -96,9 +96,6 @@ function setListeners() {
 		let y = e.movementY * 0.01
 
 		vec3.rotateY(state.target, state.target, state.camera, -x)
-
-		console.log(state.target[0], state.target[1])
-
 		vec3.rotateX(state.target, state.target, state.camera, -y)
 
 		state.angle.x += x
