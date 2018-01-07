@@ -16,7 +16,8 @@ let config = {
 	moveSpeed: 0.002,
 	rotateSpeed: 0.002,
 
-	keyHelper: null
+	keyHelper: null,
+	lightMode: 2		// 1 for Vertex-based lighting, 2 for Fragment-based lighting
 }
 
 let state = {
@@ -47,7 +48,6 @@ let state = {
 		// Light
 		light: {
 			position: null,
-			ambientColor: vec4.fromValues(),
 			diffuseColor: null,
 			specularColor: null,
 			ambientIntensity: null,
@@ -94,7 +94,7 @@ function init() {
 	gl.enable(gl.DEPTH_TEST)
 
 	// Init shader program via additional function and bind it
-	program = initShaders(gl, 'vertex-shader', 'fragment-shader')
+	program = initShaders(gl, 'vertex-shader-light-' + config.lightMode, 'fragment-shader-light-' + config.lightMode)
 	gl.useProgram(program)
 
 	// Specify vertices
@@ -274,6 +274,7 @@ function updateLight() {
 	gl.uniform1f(state.loc.light.diffuseIntensity, 0.8)
 	gl.uniform1f(state.loc.light.specularIntensity, 1.0)
 	gl.uniform1f(state.loc.light.specularExponent, 24)
+	gl.uniform1i(state.loc.light.mode, 1)
 }
 
 function render(e) {
