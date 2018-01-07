@@ -23,8 +23,18 @@ class PalmTreeLeaf extends WebGLObject {
 
 		let colors = [].concat.apply([], mesh.map(c => [0.2, 0.55, 0.235, 1]))
 
+		let normals = [
+			0, 1, 0,
+			0, 1, 0,
+			0, 1, 0,
+			0, 0.4, 0,
+			0, 0.4, 0,
+			0, 0.4, 0,
+		];
+
 		return {
 			mesh,
+			normals, // TODO
 			colors
 		}
 	}

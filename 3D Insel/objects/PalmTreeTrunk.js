@@ -24,67 +24,9 @@ class PalmTreeTrunk extends WebGLObject {
 			z: this.z + (this.width / 2)
 		}
 
-		let mesh = [
-			// Front
-			from.x, from.y, to.z,
-			to.x, from.y, to.z,
-			from.x, to.y, to.z,
+		let model = this.makeCubeModel(from, to)
+		model.colors = [].concat.apply([], model.mesh.map(c => [0.364, 0.25, 0.216, 1]))
 
-			to.x, to.y, to.z,
-			from.x, to.y, to.z,
-			to.x, from.y, to.z,
-
-			// Right
-			to.x, to.y, to.z,
-			to.x, from.y, to.z,
-			to.x, from.y, from.z,
-
-			to.x, to.y, from.z,
-			to.x, to.y, to.z,
-			to.x, from.y, from.z,
-
-			// Back
-			from.x, from.y, from.z,
-			to.x, from.y, from.z,
-			from.x, to.y, from.z,
-
-			to.x, to.y, from.z,
-			from.x, to.y, from.z,
-			to.x, from.y, from.z,
-
-			// Left
-			from.x, to.y, to.z,
-			from.x, from.y, to.z,
-			from.x, from.y, from.z,
-
-			from.x, to.y, from.z,
-			from.x, to.y, to.z,
-			from.x, from.y, from.z,
-
-			// Bottom
-			from.x, from.y, to.z,
-			from.x, from.y, from.z,
-			to.x, from.y, to.z,
-
-			to.x, from.y, from.z,
-			from.x, from.y, from.z,
-			to.x, from.y, to.z,
-
-			// Top
-			from.x, to.y, to.z,
-			from.x, to.y, from.z,
-			to.x, to.y, to.z,
-
-			to.x, to.y, from.z,
-			from.x, to.y, from.z,
-			to.x, to.y, to.z
-		]
-
-		let colors = [].concat.apply([], mesh.map(c => [0.364, 0.25, 0.216, 1]))
-
-		return {
-			mesh,
-			colors
-		}
+		return model
 	}
 }

@@ -7,16 +7,57 @@
 		<script id="vertex-shader" type="x-shader/x-vertex">
 			attribute vec4 vPosition;
 			attribute vec4 vColor;
+			attribute vec4 vNormal;
 			
 			uniform mat4 modelMatrix;
 			uniform mat4 viewMatrix;
 			uniform mat4 projectionMatrix;
+			uniform mat4 normalMatrix;
+
+			uniform vec3 lightPos;
+			uniform vec4 diffuseColor;
+			uniform vec4 specularColor;
+
+			uniform float ambientIntensity; // I_a
+			uniform float diffuseIntensity; // I_d
+			uniform float specularItensity; // I_s
+			uniform float specularExponent; // n_s
+
+			const float c_1 = 0.1;
+			const float c_2 = 0.67;
+			const float c_3 = 0.1;
 
 			varying vec4 fColor;
+
 			void main()
 			{
 				fColor = vColor;
 				gl_Position = projectionMatrix * viewMatrix * modelMatrix * vPosition;
+
+				// Let it be light!
+				vec3 normal = vec3(normalMatrix * vec4(vNormal));		// N
+				vec4 vertPos4 = modelMatrix * vec4(vPosition);
+				vec3 vertPos = vec3(vertPos4) / vertPos4.w;
+				vec3 lightDir = normalize(lightPos - vertPos);			// L
+				vec3 reflectDir = reflect(-lightDir, normal);			// R
+				vec3 viewDir = normalize(-vertPos);						// V
+
+				float distance = distance(vec4(lightPos, 1.0), vPosition);	// d
+
+				// I_a * k_a
+				vec4 ambientLight = ambientIntensity * vColor;
+
+				// I_d * k_d * max(0, N * L)
+				vec4 diffuseLight = diffuseIntensity * vColor * max(dot(normal, lightDir), 0.0);
+
+				// I_s * k_s * max(0, R * V)^n
+				vec4 specularLight = specularItensity * specularColor * pow(max(dot(reflectDir, viewDir), 0.0), specularExponent);
+
+				// min(1 / (c1 + c2 * d + c3 * d^2), 1)
+				float fAtt = min(1.0 / (c_1 + c_2 * distance + c_3 * pow(distance, 2.0)), 1.0);
+
+				// Phong-Gleichung
+				fColor = ambientLight + fAtt * (diffuseLight + specularLight);
 			}
 		</script>
 		<script id="fragment-shader" type="x-shader/x-fragment">

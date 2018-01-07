@@ -8,24 +8,13 @@ let objects = []
 // Shader variables
 let program
 
-let pointLoc,
-	colorLoc
-
-let modelMatrixLoc
-
-let viewMatrixLoc,
-	viewMatrix
-
-let projectionMatrixLoc,
-	projectionMatrix
-
 let config = {
 	island: {
 		size: 1.5
 	},
 
-	moveSpeed: 0.01,
-	rotateSpeed: 0.01,
+	moveSpeed: 0.002,
+	rotateSpeed: 0.002,
 
 	keyHelper: null
 }
@@ -39,41 +28,88 @@ let state = {
 	},
 
 	camera: vec3.fromValues(0, 0.1, 1),
-	target: vec3.fromValues(0, 0, 0.6)
+	target: vec3.fromValues(0, 0, 0.6),
+
+	loc: {
+		// Vertices
+		point: null,
+		normal: null,
+		color: null,
+
+		// Matrices
+		matrices: {
+			model: null,
+			normal: null,
+			projection: null,
+			view: null
+		},
+
+		// Light
+		light: {
+			position: null,
+			ambientColor: vec4.fromValues(),
+			diffuseColor: null,
+			specularColor: null,
+			ambientIntensity: null,
+			diffuseIntensity: null,
+			specularIntensity: null,
+			specularExponent: null
+		}
+	},
+
+	matrices: {
+		view: null,
+		projection: null
+	}
 }
 
 function degToRad(deg) {
 	return deg * Math.PI / 180
 }
 
+function radToDeg(rad) {
+	return rad * (180 / Math.PI)
+}
+
 /**
  * Initializes the program, models and shaders
  */
 function init() {
-	// 1. Get canvas and setup WebGL context
+	// Get canvas and setup WebGL context
     canvas = document.getElementById("gl-canvas")
 	gl = canvas.getContext('webgl')
 	
-	// 2. Configure canvas
-	gl.clearColor(0.01, 0.6, 0.9, 1)
+	// Configure canvas
+	gl.clearColor(0.00, 0.19, 0.39, 1)
+	// gl.clearColor(0, 0, 0, 1.0)
 	gl.enable(gl.DEPTH_TEST)
 
-	// 3. Specify vertices
+	// Init shader program via additional function and bind it
+	program = initShaders(gl, 'vertex-shader', 'fragment-shader')
+	gl.useProgram(program)
+
+	// Specify vertices
 	let palmTree = new PalmTree(x = 0, y = 0, z = 0, height = 0.32, leafs = 5)
 
-	objects.push(new Water(x = 0, y = -0.14, z = 0, width = 2.0, height = 0.0019, depth = 2.0))
+	objects.push(new Water(x = 0, y = -0.041, z = 0, width = 2.0, height = 0.0019, depth = 2.0))
 	objects.push(new Island(x = 0, y = -0.04, z = 0, width = config.island.size, height = 0.00191, depth = config.island.size))
 	objects.push(palmTree.getTrunk())
 	objects = objects.concat(palmTree.getLeafs())
+	
+	// Save attribute location to address them
+	state.loc.point = gl.getAttribLocation(program, 'vPosition')
+	state.loc.normal = gl.getAttribLocation(program, 'vNormal')
+	state.loc.color = gl.getAttribLocation(program, 'vColor')
 
-	// 4. Init shader program via additional function and bind it
-	program = initShaders(gl, "vertex-shader", "fragment-shader")
-	gl.useProgram(program)
+	state.loc.matrices.model = gl.getUniformLocation(program, 'modelMatrix')
+	state.loc.matrices.normal = gl.getUniformLocation(program, 'normalMatrix')
 
-	// 7 Save attribute location to address them
-	pointLoc = gl.getAttribLocation(program, "vPosition")
-	colorLoc = gl.getAttribLocation(program, "vColor")
-	modelMatrixLoc = gl.getUniformLocation(program, "modelMatrix")
+	state.loc.light.position = gl.getUniformLocation(program, 'lightPos')
+	state.loc.light.diffuseColor = gl.getUniformLocation(program, 'diffuseColor')
+	state.loc.light.specularColor = gl.getUniformLocation(program, 'specularColor')
+	state.loc.light.ambientIntensity = gl.getUniformLocation(program, 'ambientIntensity')
+	state.loc.light.diffuseIntensity = gl.getUniformLocation(program, 'diffuseIntensity')
+	state.loc.light.specularIntensity = gl.getUniformLocation(program, 'specularIntensity')
 
 	// Lock Mouse
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock
@@ -94,6 +130,7 @@ function setListeners() {
 	let mouseMove = (e) => {
 		let x = e.movementX * 0.01
 		let y = e.movementY * 0.01
+		let fixedY = degToRad(-radToDeg(state.angle.x) + y) // TODO
 
 		vec3.rotateY(state.target, state.target, state.camera, -x)
 		vec3.rotateX(state.target, state.target, state.camera, -y)
@@ -129,6 +166,10 @@ function setListeners() {
 	})
 }
 
+/**
+ * Update the camera's position
+ * includes movement made by the player
+ */
 function updateCamera() {
 	// W-key
 	if (state.keyHelper.isPressed(KeyHelper.CODE_W)) {
@@ -175,14 +216,28 @@ function updateCamera() {
 	}
 
 	// Update Matrices
-	viewMatrix = mat4.create()
-	mat4.lookAt(viewMatrix, state.camera, state.target, vec3.fromValues(0, 1, 0))
+	state.matrices.view = mat4.create()
+	mat4.lookAt(state.matrices.view, state.camera, state.target, vec3.fromValues(0, 1, 0))
 
-	viewMatrixLoc = gl.getUniformLocation(program, "viewMatrix")
-	gl.uniformMatrix4fv(viewMatrixLoc, false, viewMatrix)
+	state.loc.matrices.view = gl.getUniformLocation(program, "viewMatrix")
+	gl.uniformMatrix4fv(state.loc.matrices.view, false, state.matrices.view)
 }
 
-function render() {
+/**
+ * Update all light constants and positions
+ */
+function updateLight() {
+	gl.uniform3f(state.loc.light.position, 0.1, 1.0, 0.7)
+	gl.uniform4f(state.loc.light.diffuseColor, 0.3, 0.3, 0.2, 1.0)
+	gl.uniform4f(state.loc.light.specularColor, 1.0, 1.0, 1.0, 1.0)
+
+	gl.uniform1f(state.loc.light.ambientIntensity, 0.6)
+	gl.uniform1f(state.loc.light.diffuseIntensity, 0.8)
+	gl.uniform1f(state.loc.light.specularIntensity, 1.0)
+	gl.uniform1f(state.loc.light.specularExponent, 24)
+}
+
+function render(e) {
 	// Resize Canvas
 	canvas.width = window.innerWidth
 	canvas.height = window.innerHeight
@@ -191,18 +246,21 @@ function render() {
 	updateCamera()
 
 	// Set projection matrix
-	projectionMatrix = mat4.create()
+	state.matrices.projection = mat4.create()
 	mat4.perspective(
-		projectionMatrix,
+		state.matrices.projection,
 		Math.PI * 0.25,					// Field of View
 		canvas.width / canvas.height,	// Aspect Ratio
 		0.01,							// Near
 		1000							// Far
 	)
 
-	// 7 Save uniform location and save the projection matrix into it
-	projectionMatrixLoc = gl.getUniformLocation(program, "projectionMatrix")
-	gl.uniformMatrix4fv(projectionMatrixLoc, false, projectionMatrix)
+	// Save uniform location and save the projection matrix into it
+	state.loc.projectionMatrix = gl.getUniformLocation(program, "projectionMatrix")
+	gl.uniformMatrix4fv(state.loc.projectionMatrix, false, state.matrices.projection)
+
+	// Set Light
+	updateLight()
 
 	// Actually Render
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)

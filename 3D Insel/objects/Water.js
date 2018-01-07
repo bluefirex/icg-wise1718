@@ -10,6 +10,7 @@ class Water extends Island {
 
 		return {
 			mesh: model.mesh,
+			normals: model.normals,
 			colors
 		}
 	}
