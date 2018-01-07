@@ -1,26 +1,57 @@
-// Environment variables
-let gl,
-	canvas
-
-// Scene variables
-let objects = []
-
-// Shader variables
-let program
-
 let config = {
 	island: {
 		size: 1.5
 	},
 
+	/**
+	 * Speed to move the player by, should be pretty small
+	 *
+	 * @type {Number}
+	 */
 	moveSpeed: 0.002,
+
+	/**
+	 * Speed to rotate the camera by, should be pretty small
+	 *
+	 * @type {Number}
+	 */
 	rotateSpeed: 0.002,
 
-	keyHelper: null,
-	lightMode: 2		// 1 for Vertex-based lighting, 2 for Fragment-based lighting
+	/**
+	 * Determine the mode which should be used for lighting
+	 * 1 = Vertex Shader (Phong)
+	 * 2 = Fragment Shader (Phong)
+	 *
+	 * @type {Number}
+	 */
+	lightMode: 1,
+
+	/**
+	 * Enable FPS limiting by pressing "L".
+	 * Set null to disable this behavior, set to a valid number
+	 * to cap the FPS at that number.
+	 *
+	 * @type {Number|null}
+	 */
+	limitFPS: 5
 }
 
+/***************************************************************************************
+	=== Everything beyond here is internal rendering stuff and not configurable. ===
+****************************************************************************************/
+
+// Environment variables
+let gl,			// WebGL Context
+	canvas,		// Canvas Node
+	program,	// WebGL Program
+	objects		// WebGL Objects
+
 let state = {
+	/**
+	 * KeyHelper instance
+	 *
+	 * @type {KeyHelper}
+	 */
 	keyHelper: null,
 
 	angle: {
@@ -60,22 +91,29 @@ let state = {
 	matrices: {
 		view: null,
 		projection: null
-	}
+	},
+
+	fpsLimiter: null
 }
 
-// Debugging with framerate limiting
-let fpsLimit = {
-	enabled: true,
-	fps: 5,
-
-	// Internal
-	limiter: null
-}
-
+/**
+ * Convert degrees to radians
+ *
+ * @param  {Number} rad Degrees
+ *
+ * @return {Number}     Radians
+ */
 function degToRad(deg) {
 	return deg * Math.PI / 180
 }
 
+/**
+ * Convert radians to degrees
+ *
+ * @param  {Number} rad Radians
+ *
+ * @return {Number}     Degrees
+ */
 function radToDeg(rad) {
 	return rad * (180 / Math.PI)
 }
@@ -87,10 +125,10 @@ function init() {
 	// Get canvas and setup WebGL context
     canvas = document.getElementById("gl-canvas")
 	gl = canvas.getContext('webgl')
+	objects = []
 	
 	// Configure canvas
 	gl.clearColor(0.00, 0.19, 0.39, 1)
-	// gl.clearColor(0, 0, 0, 1.0)
 	gl.enable(gl.DEPTH_TEST)
 
 	// Init shader program via additional function and bind it
@@ -126,12 +164,12 @@ function init() {
 	// Set Listeners
 	setListeners()
 	
-	// 8. Render
-	if (fpsLimit.enabled) {
+	// 8. Render (and respect FPS limiting, if active)
+	if (config.limitFPS) {
 		console.info('Press L to limit the frame rate')
 
-		fpsLimit.limiter = new FPSLimiter(144, render)
-		fpsLimit.limiter.start()
+		state.fpsLimiter = new FPSLimiter(144, render)
+		state.fpsLimiter.start()
 	} else {
 		render()
 	}
@@ -162,17 +200,17 @@ function setListeners() {
 		/*
 			Limit FPS when someone presses L
 		 */
-		if (fpsLimit.enabled && e.keyCode == 76) { // L
+		if (config.limitFPS && e.keyCode == 76) { // L
 			let fps
 
-			if (fpsLimit.limiter.fps > fpsLimit.fps) {
-				fps = fpsLimit.fps
+			if (state.fpsLimiter.fps > config.limitFPS) {
+				fps = config.limitFPS
 			} else {
 				fps = 144
 			}
 
 			console.log('FPS set to', fps)
-			fpsLimit.limiter.fps = fps
+			state.fpsLimiter.fps = fps
 		}
 	}
 
