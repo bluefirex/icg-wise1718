@@ -63,6 +63,15 @@ let state = {
 	}
 }
 
+// Debugging with framerate limiting
+let fpsLimit = {
+	enabled: true,
+	fps: 5,
+
+	// Internal
+	limiter: null
+}
+
 function degToRad(deg) {
 	return deg * Math.PI / 180
 }
@@ -118,7 +127,14 @@ function init() {
 	setListeners()
 	
 	// 8. Render
-	render()
+	if (fpsLimit.enabled) {
+		console.info('Press L to limit the frame rate')
+
+		fpsLimit.limiter = new FPSLimiter(144, render)
+		fpsLimit.limiter.start()
+	} else {
+		render()
+	}
 }
 
 function setListeners() {
@@ -140,6 +156,27 @@ function setListeners() {
 	}
 
 	/**
+	 * Press a key, do stuff
+	 */
+	let keyUp = (e) => {
+		/*
+			Limit FPS when someone presses L
+		 */
+		if (fpsLimit.enabled && e.keyCode == 76) { // L
+			let fps
+
+			if (fpsLimit.limiter.fps > fpsLimit.fps) {
+				fps = fpsLimit.fps
+			} else {
+				fps = 144
+			}
+
+			console.log('FPS set to', fps)
+			fpsLimit.limiter.fps = fps
+		}
+	}
+
+	/**
 	 * When the pointer is locked, add events to react to changes
 	 */
 	document.addEventListener('pointerlockchange', (e) => {
@@ -147,12 +184,14 @@ function setListeners() {
 			canvas.addEventListener('mousemove', mouseMove)
 			window.addEventListener('keydown', state.keyHelper.onKeyDown.bind(state.keyHelper))
 			window.addEventListener('keyup', state.keyHelper.onKeyUp.bind(state.keyHelper))
+			window.addEventListener('keyup', keyUp)
 
 			console.log('Mouse locked to canvas')
 		} else {
 			canvas.removeEventListener('mousemove', mouseMove)
 			window.removeEventListener('keydown', state.keyHelper.onKeyDown.bind(state.keyHelper))
 			window.removeEventListener('keyup', state.keyHelper.onKeyUp.bind(state.keyHelper))
+			window.removeEventListener('keyup', keyUp)
 
 			console.log('Mouse released from canvas')
 		}
@@ -270,7 +309,9 @@ function render(e) {
 		object.render()
 	})
 
-	requestAnimationFrame(render)
+    if (!e || e != 'limited') {
+		requestAnimationFrame(render)
+	}
 }
 
 init()
