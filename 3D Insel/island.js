@@ -193,6 +193,15 @@ function init() {
 	})
 }
 
+/**
+ * Load a texture and return a Promise which will resolve
+ * to a texture object and the loaded image in this format:
+ * { texture: WebGLTexture, image: Image }
+ *
+ * @param  {string} image Path to the image
+ *
+ * @return {Promise}
+ */
 function loadTexture(image) {
 	return new Promise((resolve, reject) => {
 		let img = new Image()
@@ -208,6 +217,12 @@ function loadTexture(image) {
 	})
 }
 
+/**
+ * Bind a texture
+ *
+ * @param  {Image}        image   Image
+ * @param  {WebGLTexture} texture Texture
+ */
 function bindTexture(image, texture) {
 	gl.bindTexture(gl.TEXTURE_2D, texture)
 	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
@@ -217,6 +232,13 @@ function bindTexture(image, texture) {
 	gl.bindTexture(gl.TEXTURE_2D, null)
 }
 
+/**
+ * Connect a texture
+ *
+ * @param  {WebGLTexture}   texture Texture
+ * @param  {Number} loc     Location of the variable to connect to
+ * @param  {Number} i       Number of texture
+ */
 function connectTexture(texture, loc, i) {
 	gl.activeTexture(gl['TEXTURE' + i])
 	gl.bindTexture(gl.TEXTURE_2D, texture)
