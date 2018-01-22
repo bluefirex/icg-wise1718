@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>Zettel 5 - Aufgabe 1</title>
+		
+		<!--
+			Light Mode 1
+			============
+			Lighting using the Vertex Shader
+		-->
+		<script id="vertex-shader-light-1" type="x-shader/x-vertex">
+			attribute vec4 vPosition;
+			attribute vec4 vNormal;
+			
+			uniform mat4 modelMatrix;
+			uniform mat4 viewMatrix;
+			uniform mat4 projectionMatrix;
+			uniform mat4 normalMatrix;
+
+			uniform vec3 lightPosition;
+			uniform vec4 ambientColor;
+			uniform vec4 diffuseColor;
+			uniform vec4 specularColor;
+
+			uniform vec4 ambientIntensity; // I_a
+			uniform vec4 diffuseIntensity; // I_d
+			uniform vec4 specularIntensity; // I_s
+			uniform float specularExponent; // n_s
+
+			const float c1 = 1.0;
+			const float c2 = 0.0005;
+			const float c3 = 0.000003;
+
+			varying vec4 fColor;
+
+			void main()
+			{
+				// Camera coordinates
+				vec4 normal = normalMatrix * vNormal;
+				vec4 lightPos = viewMatrix * vec4(lightPosition, 1.0);
+				
+				mat4 modelViewMatrix = viewMatrix * modelMatrix;
+				vec4 position = modelViewMatrix * vPosition;
+				
+				// L, N, R, V
+				vec3 N = normalize(normal.xyz);
+				vec3 L = normalize((lightPos - position).xyz);
+				vec3 V = normalize((-position).xyz);
+				vec3 R = reflect(-L, N);
+
+				// Distance
+				float d = distance(lightPos, position);
+				float fAtt = min(1.0 / (c1 + c2 * d + c3 * pow(d, 2.0)), 1.0);
+
+				// Phong
+				fColor = ambientIntensity * ambientColor + fAtt * (diffuseIntensity * diffuseColor * max(dot(N, L), 0.0) + specularIntensity * specularColor * pow(max(dot(R, V), 0.0), specularExponent));
+
+				// Point Position
+				gl_Position = projectionMatrix * position;
+			}
+		</script>
+
+		<script id="fragment-shader-light-1" type="x-shader/x-fragment">
+			precision mediump float;
+			
+			varying vec4 fColor;
+
+			void main()
+			{
+				gl_FragColor = fColor;
+			}
+		</script>
+
+		<!--
+			Light Mode 2
+			============
+			Lighting using the Fragment Shader
+		-->
+		<script id="vertex-shader-light-2" type="x-shader/x-vertex">
+			attribute vec4 vPosition;
+			attribute vec4 vNormal;
+
+			uniform mat4 modelMatrix;
+			uniform mat4 viewMatrix;
+			uniform mat4 projectionMatrix;
+			uniform mat4 normalMatrix;
+
+			varying vec3 normalInterpolated;
+			varying vec3 vertPos;
+
+			void main()
+			{
+				gl_Position = projectionMatrix * viewMatrix * modelMatrix * vPosition;
+
+				vec4 vertPos4 = modelMatrix * vPosition;
+				vertPos = vec3(vertPos4) / vertPos4.w;
+				normalInterpolated = vec3(normalMatrix * vNormal);
+			}
+		</script>
+
+		<script id="fragment-shader-light-2" type="x-shader/x-fragment">
+			precision mediump float;
+
+			uniform vec3 lightPosition;
+			uniform vec4 ambientColor;
+			uniform vec4 diffuseColor;
+			uniform vec4 specularColor;
+
+			uniform vec4 ambientIntensity; // I_a
+			uniform vec4 diffuseIntensity; // I_d
+			uniform vec4 specularItensity; // I_s
+			uniform float specularExponent; // n_s
+			
+			varying vec3 normalInterpolated;
+			varying vec3 vertPos;
+
+			void main()
+			{
+				vec3 normal = normalize(normalInterpolated);		// N
+				vec3 lightDir = normalize(lightPosition - vertPos);		// L
+				vec3 reflectDir = reflect(-lightDir, normal);		// R
+				vec3 viewDir = normalize(-vertPos);					// V
+
+				// I_a * k_a
+				vec4 ambientLight = ambientIntensity * ambientColor;
+
+				// I_d * k_d * max(0, N * L)
+				vec4 diffuseLight = diffuseIntensity * diffuseColor * max(dot(normal, lightDir), 0.0);
+
+				// I_s * k_s * max(0, R * V)^n
+				vec4 specularLight = specularItensity * specularColor * pow(max(dot(reflectDir, viewDir), 0.0), specularExponent);
+
+				// Phong-Gleichung
+				gl_FragColor = ambientLight + diffuseLight + specularLight;
+			}
+		</script>
+
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+			}
+
+			html, body {
+				width: 100%;
+				height: 100%;
+			}
+
+			canvas {
+				display: block;
+			}
+		</style>
+
+		<script type="text/javascript" src="common/initShaders.js">
+		</script>
+		<script type="text/javascript" src="common/gl-matrix.js">
+		</script>
+	</head>
+	<body>
+		<canvas id="gl-canvas" width="512" height="512">
+			If you see this, your browser doesn't support WebGL.
+		</canvas>
+
+		<script type="text/javascript" src="utils/WebGLColor.js"></script>
+		<script type="text/javascript" src="objects/WebGLObject.js"></script>
+		<script type="text/javascript" src="objects/PalmTreeTrunk.js"></script>
+		<script type="text/javascript" src="objects/PalmTreeLeaf.js"></script>
+		<script type="text/javascript" src="objects/PalmTree.js"></script>
+		<script type="text/javascript" src="objects/Island.js"></script>
+		<script type="text/javascript" src="objects/Water.js"></script>
+		
+		<script type="text/javascript" src="utils/KeyHelper.js"></script>
+		<script type="text/javascript" src="utils/FPSLimiter.js"></script>
+
+		<script type="text/javascript" src="island.js"></script>
+	</body>
+</html>
