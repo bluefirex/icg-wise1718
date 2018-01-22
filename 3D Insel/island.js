@@ -18,15 +18,6 @@ let config = {
 	rotateSpeed: 0.002,
 
 	/**
-	 * Determine the mode which should be used for lighting
-	 * 1 = Vertex Shader (Phong)
-	 * 2 = Fragment Shader (Phong)
-	 *
-	 * @type {Number}
-	 */
-	lightMode: 1,
-
-	/**
 	 * Enable FPS limiting by pressing "L".
 	 * Set null to disable this behavior, set to a valid number
 	 * to cap the FPS at that number.
@@ -66,6 +57,8 @@ let state = {
 		// Vertices
 		point: null,
 		normal: null,
+		texCoord: null,
+		hasTexture: null,
 
 		// Matrices
 		matrices: {
@@ -85,12 +78,22 @@ let state = {
 			diffuseIntensity: null,
 			specularIntensity: null,
 			specularExponent: null
+		},
+
+		maps: {
+			diffuse: null,
+			normal: null
 		}
 	},
 
 	matrices: {
 		view: null,
 		projection: null
+	},
+
+	textures: {
+		sandDiffuse: null,
+		sandNormal: null,
 	},
 
 	fpsLimiter: null
@@ -123,7 +126,7 @@ function radToDeg(rad) {
  */
 function init() {
 	// Get canvas and setup WebGL context
-    canvas = document.getElementById("gl-canvas")
+	canvas = document.getElementById("gl-canvas")
 	gl = canvas.getContext('webgl')
 	objects = []
 	
@@ -132,7 +135,7 @@ function init() {
 	gl.enable(gl.DEPTH_TEST)
 
 	// Init shader program via additional function and bind it
-	program = initShaders(gl, 'vertex-shader-light-' + config.lightMode, 'fragment-shader-light-' + config.lightMode)
+	program = initShaders(gl, 'vertex-shader', 'fragment-shader')
 	gl.useProgram(program)
 
 	// Specify vertices
@@ -146,6 +149,8 @@ function init() {
 	// Save attribute location to address them
 	state.loc.point = gl.getAttribLocation(program, 'vPosition')
 	state.loc.normal = gl.getAttribLocation(program, 'vNormal')
+	state.loc.texCoord = gl.getAttribLocation(program, 'vTexCoord')
+	state.loc.hasTexture = gl.getUniformLocation(program, 'hasTexture')
 
 	state.loc.matrices.model = gl.getUniformLocation(program, 'modelMatrix')
 	state.loc.matrices.normal = gl.getUniformLocation(program, 'normalMatrix')
@@ -159,21 +164,63 @@ function init() {
 	state.loc.light.specularIntensity = gl.getUniformLocation(program, 'specularIntensity')
 	state.loc.light.specularExponent = gl.getUniformLocation(program, 'specularExponent')
 
+	state.loc.maps.diffuse = gl.getUniformLocation(program, 'diffuseMap')
+	state.loc.maps.normal = gl.getUniformLocation(program, 'normalMap')
+
 	// Lock Mouse
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock
 
-	// Set Listeners
-	setListeners()
+	// Load Textures, then continue
+	Promise.all([ loadTexture('./textures/sand_diffuse.jpg'), loadTexture('./textures/sand_normal.jpg') ]).then((results) => {
+		state.textures.sandDiffuse = results[0].texture
+		state.textures.sandNormal = results[1].texture
+	
+		bindTexture(results[0].image, results[0].texture)
+		bindTexture(results[1].image, results[1].texture)
 
-	// 8. Render (and respect FPS limiting, if active)
-	if (config.limitFPS) {
-		console.info('Press L to limit the frame rate')
+		// Set Listeners
+		setListeners()
 
-		state.fpsLimiter = new FPSLimiter(144, render)
-		state.fpsLimiter.start()
-	} else {
-		render()
-	}
+		// 8. Render (and respect FPS limiting, if active)
+		if (config.limitFPS) {
+			console.info('Press L to limit the frame rate')
+
+			state.fpsLimiter = new FPSLimiter(144, render)
+			state.fpsLimiter.start()
+		} else {
+			render()
+		}
+	})
+}
+
+function loadTexture(image) {
+	return new Promise((resolve, reject) => {
+		let img = new Image()
+		
+		img.onload = () => {
+			resolve({
+				image: img,
+				texture: gl.createTexture()
+			})
+		}
+
+		img.src = image
+	})
+}
+
+function bindTexture(image, texture) {
+	gl.bindTexture(gl.TEXTURE_2D, texture)
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST)
+	gl.generateMipmap(gl.TEXTURE_2D)
+	gl.bindTexture(gl.TEXTURE_2D, null)
+}
+
+function connectTexture(texture, loc, i) {
+	gl.activeTexture(gl['TEXTURE' + i])
+	gl.bindTexture(gl.TEXTURE_2D, texture)
+	gl.uniform1i(loc, i)
 }
 
 function setListeners() {
@@ -344,12 +391,17 @@ function render(e) {
 	// Actually Render
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
+	// Connect Textures
+	connectTexture(state.textures.sandDiffuse, state.loc.maps.diffuse, 0)
+	connectTexture(state.textures.sandNormal, state.loc.maps.normal, 1)
+
 	// Call every render function
-    objects.forEach(function(object) {
+	objects.forEach(function(object) {
+		gl.uniform1i(state.loc.hasTexture, +object.hasTexture())
 		object.render()
 	})
 
-    if (!e || e != 'limited') {
+	if (!e || e != 'limited') {
 		requestAnimationFrame(render)
 	}
 }

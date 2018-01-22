@@ -35,9 +35,20 @@ class PalmTreeLeaf extends WebGLObject {
 			0, 0.4, 0,
 		];
 
+		let texCoord = [
+			0.0, 1.0,
+			0.5, 1.0,
+			1.0, 0.0,
+
+			0.0, 1.0,
+			0.5, 1.0,
+			1.0, 0.0
+		];
+
 		return {
 			mesh,
-			normals // TODO
+			normals, // TODO
+			texCoord // TODO
 		}
 	}
 }

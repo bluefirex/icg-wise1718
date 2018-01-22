@@ -12,5 +12,7 @@ class Water extends Island {
 			{ r: 0, g: 0.341, b: 0.6, a: 1.0 },				// diffuse
 			{ r: 0, g: 0.341, b: 0.6, a: 1.0, n: 24 }		// specular
 		)
+
+		this.texture = null
 	}
 }

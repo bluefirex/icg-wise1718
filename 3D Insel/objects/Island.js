@@ -7,7 +7,7 @@ class Island extends WebGLObject {
 			{ r: 0.99, g: 0.857, b: 0.2, a: 1.0, n: 24 }		// specular
 		)
 
-		super(x, y, z, width, height, colors)
+		super(x, y, z, width, height, colors, { diffuse: state.textures.sandDiffuse, normal: state.textures.sandNormal })
 		this.depth = depth
 
 		this.model = this.makeModel()

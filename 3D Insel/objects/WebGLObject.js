@@ -1,11 +1,12 @@
 class WebGLObject {
-	constructor(x, y, z, width, height, colors) {
+	constructor(x, y, z, width, height, colors, texture = null) {
 		this.x = x
 		this.y = y
 		this.z = z
 		this.width = width
 		this.height = height
 		this.colors = colors
+		this.texture = texture
 
 		this.vbo = gl.createBuffer()
 		this.model = this.makeModel()
@@ -18,7 +19,7 @@ class WebGLObject {
 	 * Initialisiere den VBO mit allen Vertices und Farben
 	 */
 	initBuffer() {
-		let data = this.model.mesh.concat(this.model.normals)
+		let data = this.model.mesh.concat(this.model.normals).concat(this.model.texCoord)
 
 		gl.useProgram(program)
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo)
@@ -117,6 +118,10 @@ class WebGLObject {
 
 	makeModel() {
 		throw new Error('makeModel must be overriden.')
+	}
+
+	hasTexture() {
+		return this.texture !== null
 	}
 
 	makeCubeModel(from, to) {
@@ -226,9 +231,66 @@ class WebGLObject {
 			0, 1, 0,
 		]
 
+		let texCoord = [
+			// Front
+			1.0, 0.0,
+			0.0, 0.0,
+			1.0, 1.0,
+
+			0.0, 1.0,
+			1.0, 1.0,
+			0.0, 0.0,
+
+			// Right
+			1.0, 1.0,
+			1.0, 0.0,
+			0.0, 0.0,
+
+			0.0, 1.0,
+			1.0, 1.0,
+			0.0, 0.0,
+
+			// Back
+			0.0, 0.0,
+			1.0, 0.0,
+			0.0, 1.0,
+
+			1.0, 1.0,
+			0.0, 1.0,
+			1.0, 0.0,
+
+			// Left
+			0.0, 1.0,
+			0.0, 0.0,
+			1.0, 0.0,
+
+			1.0, 1.0,
+			0.0, 1.0,
+			1.0, 0.0,
+
+			// Bottom
+			0.0, 1.0,
+			0.0, 0.0,
+			1.0, 1.0,
+
+			1.0, 0.0,
+			0.0, 0.0,
+			1.0, 1.0,
+
+			// Top
+			0.0, 1.0,
+			0.0, 0.0,
+			1.0, 1.0,
+
+			1.0, 0.0,
+			0.0, 0.0,
+			1.0, 1.0
+		]
+
 		return {
 			mesh,
-			normals
+			normals,
+			texCoord
 		}
 	}
 
@@ -248,6 +310,9 @@ class WebGLObject {
 
 		gl.vertexAttribPointer(state.loc.normal, 3, gl.FLOAT, false, 0, this.model.mesh.length * 4) // 4 bytes
 		gl.enableVertexAttribArray(state.loc.normal)
+
+		gl.vertexAttribPointer(state.loc.texCoord, 2, gl.FLOAT, false, 0, this.model.mesh.length * 4 + this.model.normals.length * 4) // 4 bytes
+		gl.enableVertexAttribArray(state.loc.texCoord)
 
 		// Draw the object
 		gl.drawArrays(gl.TRIANGLES, 0, this.model.mesh.length / 3)
