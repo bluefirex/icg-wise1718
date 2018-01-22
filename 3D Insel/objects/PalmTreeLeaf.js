@@ -4,10 +4,15 @@
 class PalmTreeLeaf extends WebGLObject {
 
 	constructor(x, y, z, width = 0.1, height = 0.2, rotation = 0) {
-		super(x, y, z, width, height)
+		let colors = new WebGLColor(
+			{ r: 0.2, g: 0.55, b: 0.235, a: 1.0 },				// ambient
+			{ r: 0.2, g: 0.55, b: 0.235, a: 1.0 },				// diffuse
+			{ r: 0.2, g: 0.55, b: 0.235, a: 1.0, n: 24 }		// specular
+		)
+
+		super(x, y, z, width, height, colors)
 
 		this.setModelMatrix(this.makeModelMatrix({ x: 0, y: 0, z: 0 }, { x: 0, y: rotation, z: 0 }))
-		this.updateBuffer()
 	}
 
 	makeModel() {
@@ -21,8 +26,6 @@ class PalmTreeLeaf extends WebGLObject {
 			this.x, this.y - 0.04, this.z + this.height + 0.04
 		]
 
-		let colors = [].concat.apply([], mesh.map(c => [0.2, 0.55, 0.235, 1]))
-
 		let normals = [
 			0, 1, 0,
 			0, 1, 0,
@@ -34,8 +37,7 @@ class PalmTreeLeaf extends WebGLObject {
 
 		return {
 			mesh,
-			normals, // TODO
-			colors
+			normals // TODO
 		}
 	}
 }

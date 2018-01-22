@@ -4,14 +4,13 @@
  */
 class Water extends Island {
 
-	makeModel() {
-		let model = super.makeModel()
-		let colors = [].concat.apply([], model.mesh.map(c => [0, 0.341, 0.6, 1.0]))
+	constructor(x = 0, y = 0, z = 0, width = 1.0, height = 0.002, depth = 1.0) {
+		super(x, y, z, width, height, depth)
 
-		return {
-			mesh: model.mesh,
-			normals: model.normals,
-			colors
-		}
+		this.colors = new WebGLColor(
+			{ r: 0, g: 0.341, b: 0.6, a: 1.0 },				// ambient
+			{ r: 0, g: 0.341, b: 0.6, a: 1.0 },				// diffuse
+			{ r: 0, g: 0.341, b: 0.6, a: 1.0, n: 24 }		// specular
+		)
 	}
 }

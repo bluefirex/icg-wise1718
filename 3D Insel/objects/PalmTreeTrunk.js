@@ -3,7 +3,13 @@
  */
 class PalmTreeTrunk extends WebGLObject {
 	constructor(x = 0, y = 0, z = 0, width = 0.1, height = 5) {
-		super(x, y, z, width, height)
+		let colors = new WebGLColor(
+			{ r: 0.364, g: 0.25, b: 0.216, a: 1.0 },				// ambient
+			{ r: 0.364, g: 0.25, b: 0.216, a: 1.0 },				// diffuse
+			{ r: 0.364, g: 0.25, b: 0.216, a: 1.0, n: 12 }		// specular
+		)
+
+		super(x, y, z, width, height, colors)
 	}
 
 	/**
@@ -24,9 +30,6 @@ class PalmTreeTrunk extends WebGLObject {
 			z: this.z + (this.width / 2)
 		}
 
-		let model = this.makeCubeModel(from, to)
-		model.colors = [].concat.apply([], model.mesh.map(c => [0.364, 0.25, 0.216, 1]))
-
-		return model
+		return this.makeCubeModel(from, to)
 	}
 }

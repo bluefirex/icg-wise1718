@@ -66,7 +66,6 @@ let state = {
 		// Vertices
 		point: null,
 		normal: null,
-		color: null,
 
 		// Matrices
 		matrices: {
@@ -79,6 +78,7 @@ let state = {
 		// Light
 		light: {
 			position: null,
+			ambientColor: null,
 			diffuseColor: null,
 			specularColor: null,
 			ambientIntensity: null,
@@ -142,28 +142,29 @@ function init() {
 	objects.push(new Island(x = 0, y = -0.04, z = 0, width = config.island.size, height = 0.00191, depth = config.island.size))
 	objects.push(palmTree.getTrunk())
 	objects = objects.concat(palmTree.getLeafs())
-	
+
 	// Save attribute location to address them
 	state.loc.point = gl.getAttribLocation(program, 'vPosition')
 	state.loc.normal = gl.getAttribLocation(program, 'vNormal')
-	state.loc.color = gl.getAttribLocation(program, 'vColor')
 
 	state.loc.matrices.model = gl.getUniformLocation(program, 'modelMatrix')
 	state.loc.matrices.normal = gl.getUniformLocation(program, 'normalMatrix')
 
-	state.loc.light.position = gl.getUniformLocation(program, 'lightPos')
+	state.loc.light.position = gl.getUniformLocation(program, 'lightPosition')
+	state.loc.light.ambientColor = gl.getUniformLocation(program, 'ambientColor')
 	state.loc.light.diffuseColor = gl.getUniformLocation(program, 'diffuseColor')
 	state.loc.light.specularColor = gl.getUniformLocation(program, 'specularColor')
 	state.loc.light.ambientIntensity = gl.getUniformLocation(program, 'ambientIntensity')
 	state.loc.light.diffuseIntensity = gl.getUniformLocation(program, 'diffuseIntensity')
 	state.loc.light.specularIntensity = gl.getUniformLocation(program, 'specularIntensity')
+	state.loc.light.specularExponent = gl.getUniformLocation(program, 'specularExponent')
 
 	// Lock Mouse
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock
 
 	// Set Listeners
 	setListeners()
-	
+
 	// 8. Render (and respect FPS limiting, if active)
 	if (config.limitFPS) {
 		console.info('Press L to limit the frame rate')
@@ -304,15 +305,13 @@ function updateCamera() {
  * Update all light constants and positions
  */
 function updateLight() {
-	gl.uniform3f(state.loc.light.position, 0.1, 1.0, 0.7)
-	gl.uniform4f(state.loc.light.diffuseColor, 0.3, 0.3, 0.2, 1.0)
-	gl.uniform4f(state.loc.light.specularColor, 1.0, 1.0, 1.0, 1.0)
+	gl.uniform3fv(state.loc.light.position, [0.5, 0.5, 0.5]);
 
-	gl.uniform1f(state.loc.light.ambientIntensity, 0.6)
-	gl.uniform1f(state.loc.light.diffuseIntensity, 0.8)
-	gl.uniform1f(state.loc.light.specularIntensity, 1.0)
-	gl.uniform1f(state.loc.light.specularExponent, 24)
-	gl.uniform1i(state.loc.light.mode, 1)
+	gl.uniform4fv(state.loc.light.ambientIntensity, [0.3, 0.3, 0.3, 1.0]);
+	gl.uniform4fv(state.loc.light.diffuseIntensity, [0.5, 0.5, 0.5, 1.0]);
+	gl.uniform4fv(state.loc.light.specularIntensity, [0.7, 0.7, 0.7, 1.0]);
+
+	gl.uniform1i(state.loc.light.mode, config.lightMode)
 }
 
 function render(e) {
@@ -321,7 +320,12 @@ function render(e) {
 	canvas.height = window.innerHeight
 
 	gl.viewport(0, 0, canvas.width, canvas.height)
+	
+	// Set Camera
 	updateCamera()
+
+	// Set Light
+	updateLight()
 
 	// Set projection matrix
 	state.matrices.projection = mat4.create()
@@ -334,11 +338,8 @@ function render(e) {
 	)
 
 	// Save uniform location and save the projection matrix into it
-	state.loc.projectionMatrix = gl.getUniformLocation(program, "projectionMatrix")
-	gl.uniformMatrix4fv(state.loc.projectionMatrix, false, state.matrices.projection)
-
-	// Set Light
-	updateLight()
+	state.loc.matrices.projection = gl.getUniformLocation(program, 'projectionMatrix')
+	gl.uniformMatrix4fv(state.loc.matrices.projection, false, state.matrices.projection)
 
 	// Actually Render
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)

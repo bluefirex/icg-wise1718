@@ -1,7 +1,13 @@
 class Island extends WebGLObject {
 
 	constructor(x = 0, y = 0, z = 0, width = 1.0, height = 0.002, depth = 1.0) {
-		super(x, y, z, width, height)
+		let colors = new WebGLColor(
+			{ r: 0.99, g: 0.857, b: 0.2, a: 1.0 },				// ambient
+			{ r: 0.99, g: 0.857, b: 0.2, a: 1.0 },				// diffuse
+			{ r: 0.99, g: 0.857, b: 0.2, a: 1.0, n: 24 }		// specular
+		)
+
+		super(x, y, z, width, height, colors)
 		this.depth = depth
 
 		this.model = this.makeModel()
@@ -9,9 +15,9 @@ class Island extends WebGLObject {
 	}
 
 	/**
-	 * Erstelle alle Punkte und Farben
+	 * Erstelle alle Punkte
 	 *
-	 * @return {Object} { mesh, colors }
+	 * @return {Object} { mesh, normals }
 	 */
 	makeModel() {
 		let from = {
@@ -26,9 +32,6 @@ class Island extends WebGLObject {
 			z: this.z + this.depth / 2
 		}
 
-		let model = this.makeCubeModel(from, to)
-		model.colors = [].concat.apply([], model.mesh.map(c => [0.99, 0.847, 0.2, 1]))
-
-		return model
+		return this.makeCubeModel(from, to)
 	}
 }

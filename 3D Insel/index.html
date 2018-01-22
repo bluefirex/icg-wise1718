@@ -11,7 +11,6 @@
 		-->
 		<script id="vertex-shader-light-1" type="x-shader/x-vertex">
 			attribute vec4 vPosition;
-			attribute vec4 vColor;
 			attribute vec4 vNormal;
 			
 			uniform mat4 modelMatrix;
@@ -19,50 +18,46 @@
 			uniform mat4 projectionMatrix;
 			uniform mat4 normalMatrix;
 
-			uniform vec3 lightPos;
+			uniform vec3 lightPosition;
+			uniform vec4 ambientColor;
 			uniform vec4 diffuseColor;
 			uniform vec4 specularColor;
 
-			uniform float ambientIntensity; // I_a
-			uniform float diffuseIntensity; // I_d
-			uniform float specularItensity; // I_s
+			uniform vec4 ambientIntensity; // I_a
+			uniform vec4 diffuseIntensity; // I_d
+			uniform vec4 specularIntensity; // I_s
 			uniform float specularExponent; // n_s
 
-			const float c_1 = 0.1;
-			const float c_2 = 0.67;
-			const float c_3 = 0.1;
+			const float c1 = 1.0;
+			const float c2 = 0.0005;
+			const float c3 = 0.000003;
 
 			varying vec4 fColor;
 
 			void main()
 			{
-				fColor = vColor;
-				gl_Position = projectionMatrix * viewMatrix * modelMatrix * vPosition;
+				// Camera coordinates
+				vec4 normal = normalMatrix * vNormal;
+				vec4 lightPos = viewMatrix * vec4(lightPosition, 1.0);
+				
+				mat4 modelViewMatrix = viewMatrix * modelMatrix;
+				vec4 position = modelViewMatrix * vPosition;
+				
+				// L, N, R, V
+				vec3 N = normalize(normal.xyz);
+				vec3 L = normalize((lightPos - position).xyz);
+				vec3 V = normalize((-position).xyz);
+				vec3 R = reflect(-L, N);
 
-				// Let it be light!
-				vec3 normal = vec3(normalMatrix * vec4(vNormal));		// N
-				vec4 vertPos4 = modelMatrix * vec4(vPosition);
-				vec3 vertPos = vec3(vertPos4) / vertPos4.w;
-				vec3 lightDir = normalize(lightPos - vertPos);			// L
-				vec3 reflectDir = reflect(-lightDir, normal);			// R
-				vec3 viewDir = normalize(-vertPos);						// V
+				// Distance
+				float d = distance(lightPos, position);
+				float fAtt = min(1.0 / (c1 + c2 * d + c3 * pow(d, 2.0)), 1.0);
 
-				float distance = distance(vec4(lightPos, 1.0), vPosition);	// d
+				// Phong
+				fColor = ambientIntensity * ambientColor + fAtt * (diffuseIntensity * diffuseColor * max(dot(N, L), 0.0) + specularIntensity * specularColor * pow(max(dot(R, V), 0.0), specularExponent));
 
-				// I_a * k_a
-				vec4 ambientLight = ambientIntensity * vColor;
-
-				// I_d * k_d * max(0, N * L)
-				vec4 diffuseLight = diffuseIntensity * vColor * max(dot(normal, lightDir), 0.0);
-
-				// I_s * k_s * max(0, R * V)^n
-				vec4 specularLight = specularItensity * specularColor * pow(max(dot(reflectDir, viewDir), 0.0), specularExponent);
-
-				// min(1 / (c1 + c2 * d + c3 * d^2), 1)
-				float fAtt = min(1.0 / (c_1 + c_2 * distance + c_3 * pow(distance, 2.0)), 1.0);
-
-				// Phong-Gleichung
-				fColor = ambientLight + fAtt * (diffuseLight + specularLight);
+				// Point Position
+				gl_Position = projectionMatrix * position;
 			}
 		</script>
 
@@ -84,7 +79,6 @@
 		-->
 		<script id="vertex-shader-light-2" type="x-shader/x-vertex">
 			attribute vec4 vPosition;
-			attribute vec4 vColor;
 			attribute vec4 vNormal;
 
 			uniform mat4 modelMatrix;
@@ -92,13 +86,11 @@
 			uniform mat4 projectionMatrix;
 			uniform mat4 normalMatrix;
 
-			varying vec4 fColor;
 			varying vec3 normalInterpolated;
 			varying vec3 vertPos;
 
 			void main()
 			{
-				fColor = vColor;
 				gl_Position = projectionMatrix * viewMatrix * modelMatrix * vPosition;
 
 				vec4 vertPos4 = modelMatrix * vPosition;
@@ -110,33 +102,31 @@
 		<script id="fragment-shader-light-2" type="x-shader/x-fragment">
 			precision mediump float;
 
-			uniform vec3 lightPos;
+			uniform vec3 lightPosition;
+			uniform vec4 ambientColor;
 			uniform vec4 diffuseColor;
 			uniform vec4 specularColor;
 
-			uniform float ambientIntensity; // I_a
-			uniform float diffuseIntensity; // I_d
-			uniform float specularItensity; // I_s
+			uniform vec4 ambientIntensity; // I_a
+			uniform vec4 diffuseIntensity; // I_d
+			uniform vec4 specularItensity; // I_s
 			uniform float specularExponent; // n_s
 			
-			varying vec4 fColor;
 			varying vec3 normalInterpolated;
 			varying vec3 vertPos;
 
 			void main()
 			{
-				gl_FragColor = fColor;
-
 				vec3 normal = normalize(normalInterpolated);		// N
-				vec3 lightDir = normalize(lightPos - vertPos);		// L
+				vec3 lightDir = normalize(lightPosition - vertPos);		// L
 				vec3 reflectDir = reflect(-lightDir, normal);		// R
 				vec3 viewDir = normalize(-vertPos);					// V
 
 				// I_a * k_a
-				vec4 ambientLight = ambientIntensity * fColor;
+				vec4 ambientLight = ambientIntensity * ambientColor;
 
 				// I_d * k_d * max(0, N * L)
-				vec4 diffuseLight = diffuseIntensity * fColor * max(dot(normal, lightDir), 0.0);
+				vec4 diffuseLight = diffuseIntensity * diffuseColor * max(dot(normal, lightDir), 0.0);
 
 				// I_s * k_s * max(0, R * V)^n
 				vec4 specularLight = specularItensity * specularColor * pow(max(dot(reflectDir, viewDir), 0.0), specularExponent);
@@ -172,6 +162,7 @@
 			If you see this, your browser doesn't support WebGL.
 		</canvas>
 
+		<script type="text/javascript" src="utils/WebGLColor.js"></script>
 		<script type="text/javascript" src="objects/WebGLObject.js"></script>
 		<script type="text/javascript" src="objects/PalmTreeTrunk.js"></script>
 		<script type="text/javascript" src="objects/PalmTreeLeaf.js"></script>
