@@ -66,6 +66,7 @@ let state = {
 		normal: null,
 		texCoord: null,
 		hasTexture: null,
+		isSkybox: null,
 		useDisplacementWater: null,
 		useDisplacementIsland: null,
 		tick: null,
@@ -92,7 +93,8 @@ let state = {
 
 		maps: {
 			diffuse: null,
-			normal: null
+			normal: null,
+			cube: null
 		}
 	},
 
@@ -104,6 +106,7 @@ let state = {
 	textures: {
 		sandDiffuse: null,
 		sandNormal: null,
+		skybox: null
 	},
 
 	fpsLimiter: null
@@ -151,7 +154,8 @@ function init() {
 	// Specify vertices
 	let palmTree = new PalmTree(x = 0, y = 0, z = 0, height = 0.32, leafs = 5)
 
-	objects.push(new Water(x = 0, y = 0, z = -0.1, width = 2.0, depth = 2.0))
+	objects.push(new Skybox())
+	objects.push(new Water(x = 0, y = 0, z = -0.1, width = 8.0, depth = 8.0))
 	objects.push(new Island(x = 0, y = 0.0001, z = 0, width = config.island.size, height = 0.00191, depth = config.island.size))
 	objects.push(palmTree.getTrunk())
 	objects = objects.concat(palmTree.getLeafs())
@@ -161,6 +165,7 @@ function init() {
 	state.loc.normal = gl.getAttribLocation(program, 'vNormal')
 	state.loc.texCoord = gl.getAttribLocation(program, 'vTexCoord')
 	state.loc.hasTexture = gl.getUniformLocation(program, 'hasTexture')
+	state.loc.isSkybox = gl.getUniformLocation(program, 'isSkybox')
 	state.loc.useDisplacementWater = gl.getUniformLocation(program, 'useDisplacementWater')
 	state.loc.useDisplacementIsland = gl.getUniformLocation(program, 'useDisplacementIsland')
 	state.loc.tick = gl.getUniformLocation(program, 'tick')
@@ -179,17 +184,49 @@ function init() {
 
 	state.loc.maps.diffuse = gl.getUniformLocation(program, 'diffuseMap')
 	state.loc.maps.normal = gl.getUniformLocation(program, 'normalMap')
+	state.loc.maps.cube = gl.getUniformLocation(program, 'cubeMap')
 
 	// Lock Mouse
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock
 
 	// Load Textures, then continue
-	Promise.all([ loadTexture('./textures/sand_diffuse.jpg'), loadTexture('./textures/sand_normal.jpg') ]).then((results) => {
+	Promise.all([
+		loadTexture('./textures/sand_diffuse.jpg'),
+		loadTexture('./textures/sand_normal.jpg'),
+		loadTexture('./textures/skyposx1.png'),
+		loadTexture('./textures/skynegx1.png'),
+		loadTexture('./textures/skyposy1.png'),
+		loadTexture('./textures/skynegy1.png'),
+		loadTexture('./textures/skyposz1.png'),
+		loadTexture('./textures/skynegz1.png'),
+	]).then((results) => {
 		state.textures.sandDiffuse = results[0].texture
 		state.textures.sandNormal = results[1].texture
 	
 		bindTexture(results[0].image, results[0].texture)
 		bindTexture(results[1].image, results[1].texture)
+
+		// Skybox Textures
+		let skyboxTexture = gl.createTexture()
+
+		let skyboxTargets = {
+			2: gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+			3: gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
+			4: gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+			5: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+			6: gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
+			7: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z
+		}
+
+		for (let i in skyboxTargets) {
+			bindCubeTexture(results[i].image, skyboxTexture, skyboxTargets[i])
+		}
+
+		// Generate MipMap for Skybox
+		gl.generateMipmap(gl.TEXTURE_CUBE_MAP)
+		gl.bindTexture(gl.TEXTURE_2D, null)
+
+		state.textures.skybox = skyboxTexture
 
 		// Set Listeners
 		setListeners()
@@ -245,16 +282,24 @@ function bindTexture(image, texture) {
 	gl.bindTexture(gl.TEXTURE_2D, null)
 }
 
+function bindCubeTexture(image, texture, target) {
+	gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture)
+	gl.texImage2D(target, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
+	gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+}
+
 /**
  * Connect a texture
  *
  * @param  {WebGLTexture}   texture Texture
  * @param  {Number} loc     Location of the variable to connect to
  * @param  {Number} i       Number of texture
+ * @param  {String} type    Type, defaults to gl.TEXTURE_2D
  */
-function connectTexture(texture, loc, i) {
+function connectTexture(texture, loc, i, type = gl.TEXTURE_2D) {
 	gl.activeTexture(gl['TEXTURE' + i])
-	gl.bindTexture(gl.TEXTURE_2D, texture)
+	gl.bindTexture(type, texture)
 	gl.uniform1i(loc, i)
 }
 
@@ -389,7 +434,7 @@ function updateCamera() {
 function updateLight() {
 	gl.uniform3fv(state.loc.light.position, [0.5, 0.5, 0.5]);
 
-	gl.uniform4fv(state.loc.light.ambientIntensity, [0.5, 0.5, 0.5, 1.0]);
+	gl.uniform4fv(state.loc.light.ambientIntensity, [0.7, 0.7, 0.7, 1.0]);
 	gl.uniform4fv(state.loc.light.diffuseIntensity, [0.5, 0.5, 0.5, 1.0]);
 	gl.uniform4fv(state.loc.light.specularIntensity, [0.7, 0.7, 0.7, 1.0]);
 }
@@ -430,6 +475,7 @@ function render(e) {
 	// Connect Textures
 	connectTexture(state.textures.sandDiffuse, state.loc.maps.diffuse, 0)
 	connectTexture(state.textures.sandNormal, state.loc.maps.normal, 1)
+	connectTexture(state.textures.skybox, state.loc.maps.cube, 2, gl.TEXTURE_CUBE_MAP)
 
 	// Update Tick
 	gl.uniform1f(state.loc.tick, state.tick)
@@ -437,6 +483,7 @@ function render(e) {
 	// Call every render function
 	objects.forEach(function(object) {
 		gl.uniform1i(state.loc.hasTexture, +object.hasTexture())
+		gl.uniform1i(state.loc.isSkybox, object instanceof Skybox)
 		gl.uniform1i(state.loc.useDisplacementWater, object instanceof Water)
 		gl.uniform1i(state.loc.useDisplacementIsland, object instanceof Island)
 		object.render()

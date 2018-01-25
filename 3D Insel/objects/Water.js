@@ -31,6 +31,6 @@ class Water extends WebGLObject {
 			z: this.z + this.depth / 2
 		}
 
-		return this.makeTesselatedPlaneModel(from, to, 0.05)
+		return this.makeTesselatedPlaneModel(from, to, 0.2)
 	}
 }
