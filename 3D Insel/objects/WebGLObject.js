@@ -294,6 +294,50 @@ class WebGLObject {
 		}
 	}
 
+	makeTesselatedPlaneModel(from, to, step) {
+		let tesselatedMesh = []
+		let tesselatedNormals = []
+		let tesselatedTexCoord = []
+
+		for (let x = from.x; x <= to.x; x += step) {
+			for (let z = from.z; z <= to.z; z += step) {
+				tesselatedMesh = tesselatedMesh.concat([
+					x, from.y, z,
+					x + step, from.y, z,
+					x, from.y, z + step,
+
+					x, from.y, z + step,
+					x + step, from.y, z,
+					x + step, from.y, z + step
+				])
+
+				tesselatedNormals = tesselatedNormals.concat([
+					0, 1, 0,
+					0, 1, 0,
+					0, 1, 0,
+					0, 1, 0,
+					0, 1, 0,
+					0, 1, 0
+				])
+
+				tesselatedTexCoord = tesselatedTexCoord.concat([
+					0.0, 0.0,
+					1.0, 0.0,
+					1.0, 1.0,
+					0.0, 1.0,
+					0.0, 0.0,
+					1.0, 1.0,
+				])
+			}
+		}
+
+		return {
+			mesh: tesselatedMesh,
+			normals: tesselatedNormals,
+			texCoord: tesselatedTexCoord
+		}
+	}
+
 	/**
 	 * Zeichne!
 	 */

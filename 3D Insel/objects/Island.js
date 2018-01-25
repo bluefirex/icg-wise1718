@@ -28,10 +28,10 @@ class Island extends WebGLObject {
 
 		let to = {
 			x: this.x + this.width / 2,
-			y: this.y + this.height,
+			y: this.y,
 			z: this.z + this.depth / 2
 		}
 
-		return this.makeCubeModel(from, to)
+		return this.makeTesselatedPlaneModel(from, to, 0.1)
 	}
 }
