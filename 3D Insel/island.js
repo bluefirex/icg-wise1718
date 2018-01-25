@@ -1,6 +1,6 @@
 let config = {
 	island: {
-		size: 1.5
+		size: 1.2
 	},
 
 	/**
@@ -45,13 +45,20 @@ let state = {
 	 */
 	keyHelper: null,
 
+	/**
+	 * Current tick, useful for animating stuff
+	 *
+	 * @type {Number}
+	 */
+	tick: 0,
+
 	angle: {
 		x: 0,
 		y: 0
 	},
 
-	camera: vec3.fromValues(0, 0.1, 1),
-	target: vec3.fromValues(0, 0, 0.6),
+	camera: vec3.fromValues(0, 0.16, 0.5),
+	target: vec3.fromValues(0, 0.1, 0),
 
 	loc: {
 		// Vertices
@@ -59,6 +66,9 @@ let state = {
 		normal: null,
 		texCoord: null,
 		hasTexture: null,
+		useDisplacementWater: null,
+		useDisplacementIsland: null,
+		tick: null,
 
 		// Matrices
 		matrices: {
@@ -131,7 +141,7 @@ function init() {
 	objects = []
 	
 	// Configure canvas
-	gl.clearColor(0.00, 0.19, 0.39, 1)
+	gl.clearColor(0.00, 0.29, 0.49, 1)
 	gl.enable(gl.DEPTH_TEST)
 
 	// Init shader program via additional function and bind it
@@ -141,8 +151,8 @@ function init() {
 	// Specify vertices
 	let palmTree = new PalmTree(x = 0, y = 0, z = 0, height = 0.32, leafs = 5)
 
-	objects.push(new Water(x = 0, y = -0.041, z = 0, width = 2.0, height = 0.0019, depth = 2.0))
-	objects.push(new Island(x = 0, y = -0.04, z = 0, width = config.island.size, height = 0.00191, depth = config.island.size))
+	objects.push(new Water(x = 0, y = 0, z = -0.1, width = 2.0, depth = 2.0))
+	objects.push(new Island(x = 0, y = 0.0001, z = 0, width = config.island.size, height = 0.00191, depth = config.island.size))
 	objects.push(palmTree.getTrunk())
 	objects = objects.concat(palmTree.getLeafs())
 
@@ -151,6 +161,9 @@ function init() {
 	state.loc.normal = gl.getAttribLocation(program, 'vNormal')
 	state.loc.texCoord = gl.getAttribLocation(program, 'vTexCoord')
 	state.loc.hasTexture = gl.getUniformLocation(program, 'hasTexture')
+	state.loc.useDisplacementWater = gl.getUniformLocation(program, 'useDisplacementWater')
+	state.loc.useDisplacementIsland = gl.getUniformLocation(program, 'useDisplacementIsland')
+	state.loc.tick = gl.getUniformLocation(program, 'tick')
 
 	state.loc.matrices.model = gl.getUniformLocation(program, 'modelMatrix')
 	state.loc.matrices.normal = gl.getUniformLocation(program, 'normalMatrix')
@@ -366,7 +379,7 @@ function updateCamera() {
 	state.matrices.view = mat4.create()
 	mat4.lookAt(state.matrices.view, state.camera, state.target, vec3.fromValues(0, 1, 0))
 
-	state.loc.matrices.view = gl.getUniformLocation(program, "viewMatrix")
+	state.loc.matrices.view = gl.getUniformLocation(program, 'viewMatrix')
 	gl.uniformMatrix4fv(state.loc.matrices.view, false, state.matrices.view)
 }
 
@@ -376,14 +389,15 @@ function updateCamera() {
 function updateLight() {
 	gl.uniform3fv(state.loc.light.position, [0.5, 0.5, 0.5]);
 
-	gl.uniform4fv(state.loc.light.ambientIntensity, [0.3, 0.3, 0.3, 1.0]);
+	gl.uniform4fv(state.loc.light.ambientIntensity, [0.5, 0.5, 0.5, 1.0]);
 	gl.uniform4fv(state.loc.light.diffuseIntensity, [0.5, 0.5, 0.5, 1.0]);
 	gl.uniform4fv(state.loc.light.specularIntensity, [0.7, 0.7, 0.7, 1.0]);
-
-	gl.uniform1i(state.loc.light.mode, config.lightMode)
 }
 
 function render(e) {
+	// Advance tick
+	state.tick += 0.001
+
 	// Resize Canvas
 	canvas.width = window.innerWidth
 	canvas.height = window.innerHeight
@@ -417,9 +431,14 @@ function render(e) {
 	connectTexture(state.textures.sandDiffuse, state.loc.maps.diffuse, 0)
 	connectTexture(state.textures.sandNormal, state.loc.maps.normal, 1)
 
+	// Update Tick
+	gl.uniform1f(state.loc.tick, state.tick)
+
 	// Call every render function
 	objects.forEach(function(object) {
 		gl.uniform1i(state.loc.hasTexture, +object.hasTexture())
+		gl.uniform1i(state.loc.useDisplacementWater, object instanceof Water)
+		gl.uniform1i(state.loc.useDisplacementIsland, object instanceof Island)
 		object.render()
 	})
 

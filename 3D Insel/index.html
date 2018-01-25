@@ -15,6 +15,10 @@
 
 			uniform vec3 lightPosition;
 
+			uniform float tick;
+			uniform bool useDisplacementWater;
+			uniform bool useDisplacementIsland;
+
 			varying vec4 position;
 			varying vec4 fNormal;
 			varying vec4 lightPos;
@@ -25,7 +29,24 @@
 			{
 				// Calculate positions in camera coordinates
 				lightPos = viewMatrix * vec4(lightPosition, 1);
-				position = viewMatrix * modelMatrix * vPosition;
+				vec4 displaced = vPosition;
+
+				// Animate Displaced Water
+				if (useDisplacementWater) {
+					float frequency = 40.0;	// the higher the frequence, the more waves
+					float speed = 12.0;
+
+					float dist = distance(vec4(vPosition.x, 0.0, vPosition.z, 1.0), vec4(0.0, 0.0, 0.0, 1.0));
+					displaced.y = sin(-dist * frequency - tick * speed) * 0.03 - 0.08;
+				}
+
+				// Displace Island
+				if (useDisplacementIsland) {
+					float dist = distance(vec4(vPosition.x, 0.0, vPosition.z, 1.0), vec4(0.0, 0.0, 0.0, 1.0));
+					displaced.y = sin(-dist) * 0.13;
+				}
+
+				position = viewMatrix * modelMatrix * displaced;
 
 				// Pass normals to fragment shader
 				fNormal = vec4(vNormal, 0.0);
