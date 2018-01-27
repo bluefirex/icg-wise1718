@@ -208,24 +208,16 @@ function init() {
 
 		// Skybox Textures
 		let skyboxTexture = gl.createTexture()
-
-		let skyboxTargets = {
-			2: gl.TEXTURE_CUBE_MAP_POSITIVE_X,
-			3: gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
-			4: gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
-			5: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
-			6: gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
-			7: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z
+		let skyboxImages = {
+			[gl.TEXTURE_CUBE_MAP_POSITIVE_X]: results[2].image,
+			[gl.TEXTURE_CUBE_MAP_NEGATIVE_X]: results[3].image,
+			[gl.TEXTURE_CUBE_MAP_POSITIVE_Y]: results[4].image,
+			[gl.TEXTURE_CUBE_MAP_NEGATIVE_Y]: results[5].image,
+			[gl.TEXTURE_CUBE_MAP_POSITIVE_Z]: results[6].image,
+			[gl.TEXTURE_CUBE_MAP_NEGATIVE_Z]: results[7].image,
 		}
 
-		for (let i in skyboxTargets) {
-			bindCubeTexture(results[i].image, skyboxTexture, skyboxTargets[i])
-		}
-
-		// Generate MipMap for Skybox
-		gl.generateMipmap(gl.TEXTURE_CUBE_MAP)
-		gl.bindTexture(gl.TEXTURE_2D, null)
-
+		bindCubeTexture(skyboxImages, skyboxTexture)
 		state.textures.skybox = skyboxTexture
 
 		// Set Listeners
@@ -282,11 +274,23 @@ function bindTexture(image, texture) {
 	gl.bindTexture(gl.TEXTURE_2D, null)
 }
 
-function bindCubeTexture(image, texture, target) {
+/**
+ * Bind a cube texture
+ *
+ * @param  {Object}       images  Mapping of { [target]: Image, [target2]: Image, … }
+ * @param  {WebGLTexture} texture Texture
+ */
+function bindCubeTexture(images, texture) {
 	gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture)
-	gl.texImage2D(target, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
+
+	for (let target in images) {
+		gl.texImage2D(target, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[target]);
+	}
+
 	gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.generateMipmap(gl.TEXTURE_CUBE_MAP)
+	gl.bindTexture(gl.TEXTURE_2D, null)
 }
 
 /**
